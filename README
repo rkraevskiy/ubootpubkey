@@ -1,0 +1,109 @@
+
+====================
+
+Ubpubkey was created to separate u-boot compilation from FIT image generation and signing. The following steps can be used with ubpubkey:
+1. keys generation
+2. u-boot compilation with embedded RSA public key
+3. FIT image generation
+4. FIT image signing
+
+This schema is more flexible: no need to have private keys for compilation and images generation. 
+
+====================
+Keys generation
+
+Generate a private key:
+
+openssl genrsa -out keys/uboot_sign_key.key 4096
+
+Generate public key from private key:
+
+openssl req -batch -new -x509 -key keys/uboot_sign_key.key -out keys/uboot_sign_key.crt
+
+====================
+U-boot compilation
+
+create an u-boot DTS uboot-dts/u-boot.dts with key entry like below:
+
+/dts-v1/;
+/ {
+	model ="Keys";
+	compatible ="vendor,board";
+	signature {
+		key-my_key {
+			required ="image";
+			algo ="sha1,rsa4096";
+			key-name-hint ="uboot_sign_key";
+#include "u-boot-pubkey.dtsi"
+		};
+	};
+};
+
+
+Generate an u-boot dts include file with public key information:
+
+ubpubkey.py keys/uboot_sign_key.crt uboot-dts/u-boot-pubkey.dtsi
+
+Generate an u-boot dts file with public key information:
+
+cpp -P -x assembler-with-cpp -Iuboot-dts -nostdinc -undef -D__DTS__ uboot-dts/u-boot.dts  -o out/u-boot.dts
+
+Use the out/u-boot.dts during an u-boot image generation.
+
+====================
+FIT image generation
+
+Create a file fitImage.its with content like below:
+
+
+/dts-v1/;
+/ {
+	description ="fitImage for Foo";
+	images {
+		kernel@1 {
+			description ="Linux kernel";
+			data = /incbin/("foo/zImage");
+			type ="kernel";
+			arch ="arm";
+			os ="linux";
+			compression ="none";
+			load = <0x10008000>;
+			entry = <0x10008000>;
+			signature@1 {
+				algo ="sha256,rsa4096";
+				key-name-hint ="uboot_sign_key";
+			};
+		};
+		fdt@1 {
+			description ="DTB for Foo";
+			data = /incbin/("foo/foo.dtb");
+			type ="flat_dt";
+			arch ="arm";
+			compression ="none";
+			signature@1 {
+				algo ="sha256,rsa4096";
+				key-name-hint ="uboot_sign_key";
+			};
+		};
+	};
+	configurations {
+		default="conf@1";
+		conf@1{
+			kernel ="kernel@1";
+			fdt ="fdt@1";
+		};
+	};
+};
+
+
+Generate a FIT image with (no signature inside):
+
+mkimage -f fitImage.its -r out/fitImage
+
+====================
+Sign the FIT image
+
+
+mkimage -F -k keys/ -r out/fitImage
+
+
