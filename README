@@ -31,7 +31,7 @@ create an u-boot DTS uboot-dts/u-boot.dts with key entry like below:
 	compatible ="vendor,board";
 	signature {
 		key-my_key {
-			required ="image";
+			required ="conf";
 			algo ="sha1,rsa4096";
 			key-name-hint ="uboot_sign_key";
 #include "u-boot-pubkey.dtsi"
@@ -69,9 +69,8 @@ Create a file fitImage.its with content like below:
 			compression ="none";
 			load = <0x10008000>;
 			entry = <0x10008000>;
-			signature@1 {
-				algo ="sha256,rsa4096";
-				key-name-hint ="uboot_sign_key";
+			hash-1 {
+				algo = "sha256";
 			};
 		};
 		fdt@1 {
@@ -80,9 +79,8 @@ Create a file fitImage.its with content like below:
 			type ="flat_dt";
 			arch ="arm";
 			compression ="none";
-			signature@1 {
-				algo ="sha256,rsa4096";
-				key-name-hint ="uboot_sign_key";
+			hash-1 {
+				algo = "sha256";
 			};
 		};
 	};
@@ -91,6 +89,11 @@ Create a file fitImage.its with content like below:
 		conf@1{
 			kernel ="kernel@1";
 			fdt ="fdt@1";
+			signature@1 {
+				algo ="sha256,rsa4096";
+				key-name-hint ="uboot_sign_key";
+				sign-images = "fdt", "kernel";
+			};
 		};
 	};
 };

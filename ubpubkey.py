@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 
 #
@@ -19,12 +19,15 @@ A script to convert RSA public key to uboot dts format.
 2020 Roman Kraievskyi <rkraevskiy@gmail.com>
 """
 
+
+
+
 from __future__ import print_function
 
 from Crypto.PublicKey import RSA
 
 
-VERSION = "1.0"
+VERSION = "1.0a"
 NAME = "ubpubkey"
 
 
@@ -134,22 +137,12 @@ if __name__ == "__main__":
         eprint("Failed to open file '%s'"%ifname)
         sys.exit(1)
 
-    if args.outfile:
-        ofname = args.outfile
-        try:
-            of = open(ofname,"w")
-        except:
-            eprint("Failed to open output file '%s'"%ofname);
-            sys.exit(1)
-    else:
-        of = sys.stdout
 
     ifsrc = os.path.basename(ifname)
     try:
         # try to import as public key
         key = RSA.importKey(key_data)
-        der_data = key.exportKey('DER')
-        src = "pupk"
+        src = "pubk"
     except:
         # certificate?
         try:
@@ -166,9 +159,22 @@ if __name__ == "__main__":
             sys.exit(1)
 
     try:
+        der_data = key.exportKey('DER')
         x = UbootKeyData(key)
+        props = get_uboot_properties(x)
 
-        for k,v in get_uboot_properties(x).items():
+        if args.outfile:
+            ofname = args.outfile
+            try:
+                of = open(ofname,"w")
+            except:
+                eprint("Failed to open output file '%s'"%ofname);
+                sys.exit(1)
+        else:
+            of = sys.stdout
+
+        for k in sorted(props.keys()):
+            v = props[k]
             print("%s = %s;"%(k,v), file=of)
         print('k-gen = "%s/%s/%s";'%(NAME,VERSION,int(time.mktime(datetime.datetime.now().timetuple()))), file=of)
 
